@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64", "setuptools_scm[toml]>=8"]
+requires = ["setuptools>=80", "setuptools-scm[simple]>=9.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -86,4 +86,11 @@ filterwarnings = [
     "ignore::PendingDeprecationWarning",
     # Don't show warnings for PyTorch import failures
     "ignore:PyTorch not available.*:UserWarning"
+]
+
+[dependency-groups]
+dev = [
+    "mypy",
+    "pytest",
+    "ruff",
 ]

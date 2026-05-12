@@ -60,23 +60,30 @@ def set_seed(seed=42, n_devices=1):
 
     os.environ["PYTHONHASHSEED"] = str(seed)  # Python hash seed
 
-def get_training_strategy(n_devices):
+def get_training_strategy(strategy, n_devices):
     """
-    Dynamically returns training strategy based on number of GPUs. Big distinction between
-    1 gpu and > 1 GPU(s)
+    Returns the Lightning training strategy.
+
+    If `strategy == 'auto'`, dynamically selects based on number of GPUs:
+      - 1 GPU  -> 'auto'
+      - 2+ GPUs -> DDPStrategy with sensible defaults
+    Otherwise, returns `strategy` unchanged so Lightning can interpret it
+    (e.g. 'ddp', 'ddp_notebook', 'ddp_spawn', or a Strategy instance).
 
     Args:
-        n_devices: Number of GPUs being trained on
-    
+        strategy: Requested strategy. Pass 'auto' to auto-select.
+        n_devices: Number of GPUs being trained on (used only when strategy=='auto').
     """
+    if strategy != 'auto':
+        return strategy
+
     if n_devices <= 1:
         return 'auto'
-    
-    elif n_devices >= 2:
-        return DDPStrategy(find_unused_parameters = False,
-                           static_graph=True,
-                           gradient_as_bucket_view=True,
-                           process_group_backend='nccl')
+
+    return DDPStrategy(find_unused_parameters=False,
+                       static_graph=True,
+                       gradient_as_bucket_view=True,
+                       process_group_backend='nccl')
     
 def find_learning_rate(base_lr, n_devices, batch_size_per_gpu):
     """
@@ -231,7 +238,7 @@ class ModelFineTuner:
             accelerator = 'gpu',
             callbacks = callbacks,
             accumulate_grad_batches=1,
-            strategy=get_training_strategy(self.training_config.n_devices),
+            strategy=get_training_strategy(self.training_config.strategy, self.training_config.n_devices),
             check_val_every_n_epoch=1,  # Validate every epoch during fine-tuning
             enable_checkpointing=True,
         )
@@ -991,7 +998,7 @@ class StagedFineTuner_Lightning:
             max_epochs=max_epochs,
             devices=self.training_config.n_devices,
             accelerator='gpu',
-            strategy=get_training_strategy(self.training_config.n_devices),
+            strategy=get_training_strategy(self.training_config.strategy, self.training_config.n_devices),
             callbacks=[checkpoint_callback, early_stop_callback],
             enable_checkpointing=True,
             logger=[tb_logger, csv_logger],
